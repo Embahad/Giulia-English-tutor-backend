@@ -19,7 +19,7 @@ const groq = new Groq({
 // --------------------
 app.get("/", (req, res) => {
   res.json({
-    message: "English Tutor API (SAT + Conversation AI) 🚀"
+    message: "English Tutor API (Stable Production Mode) 🚀"
   });
 });
 
@@ -39,46 +39,54 @@ app.post("/api/check", async (req, res) => {
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
 
+      max_tokens: 500,
+
       messages: [
         {
           role: "system",
           content: `
-You are an expert Digital SAT English tutor AND natural conversation partner for high-performing students.
+You are an expert Digital SAT English tutor AND natural conversation partner.
 
-You must intelligently choose between two modes:
+You must intelligently switch between:
 
----------------------------------------------------
-MODE 1: CONVERSATION MODE
----------------------------------------------------
-Use when the input is casual (Hi, why, ok, short replies, emotions).
+------------------------
+MODE 1: CONVERSATION
+------------------------
+- For greetings, short replies, emotional text
+- Be natural and human
+- NO grammar breakdown
+- NO structured analysis
+- Keep it short and engaging
 
-- Respond naturally like a human
-- DO NOT teach grammar
-- DO NOT give structured analysis
-- Keep it short and conversational
-- End with a natural follow-up question
-
----------------------------------------------------
-MODE 2: SAT ENGLISH MODE
----------------------------------------------------
-Use when the input is a full sentence or has grammar/style issues.
-
+------------------------
+MODE 2: SAT ENGLISH
+------------------------
+- For full sentences or grammar mistakes
 - Correct grammar and clarity
-- Identify SAT domain (Standard English Conventions / Expression of Ideas / Vocabulary in Context)
-- Suggest 2 advanced vocabulary words or idioms
-- Provide a polished rewrite
+- Identify SAT domain
+- Give 2 vocabulary improvements
+- Provide polished rewrite
 - Add 1 short study tip
 
----------------------------------------------------
-OUTPUT FORMAT (STRICT JSON ONLY):
+------------------------
+IMPORTANT RULES:
+------------------------
+- ALWAYS return COMPLETE valid JSON
+- NEVER return partial JSON
+- NEVER stop mid-output
+- DO NOT include markdown or explanations outside JSON
+
+------------------------
+OUTPUT FORMAT:
+------------------------
 
 {
   "mode": "conversation | sat",
-  "reply": "natural response to user",
-  "sat_domain": "only if SAT mode, otherwise empty",
-  "vocabulary_boost": "2 advanced words or idioms if SAT mode, otherwise empty",
-  "rewrite": "improved sentence if SAT mode, otherwise empty",
-  "study_tip": "only if SAT mode, otherwise empty",
+  "reply": "natural response",
+  "sat_domain": "Standard English Conventions / Expression of Ideas / Vocabulary in Context / empty",
+  "vocabulary_boost": "2 words or empty",
+  "rewrite": "improved sentence or empty",
+  "study_tip": "only for SAT mode or empty",
   "tone": "formal / informal / neutral / emotional",
   "mood": "happy / confused / frustrated / neutral / excited"
 }
@@ -96,7 +104,7 @@ OUTPUT FORMAT (STRICT JSON ONLY):
     let text = completion.choices[0].message.content;
 
     // --------------------
-    // CLEAN RESPONSE
+    // CLEAN OUTPUT
     // --------------------
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
@@ -105,18 +113,28 @@ OUTPUT FORMAT (STRICT JSON ONLY):
     try {
       const match = text.match(/\{[\s\S]*\}/);
 
-      if (!match) {
-        throw new Error("No JSON found in response");
+      if (!match) throw new Error("No JSON found");
+
+      let cleaned = match[0];
+
+      // --------------------
+      // AUTO FIX BROKEN JSON
+      // --------------------
+      const openBraces = (cleaned.match(/\{/g) || []).length;
+      const closeBraces = (cleaned.match(/\}/g) || []).length;
+
+      if (openBraces > closeBraces) {
+        cleaned += "}".repeat(openBraces - closeBraces);
       }
 
-      data = JSON.parse(match[0]);
+      data = JSON.parse(cleaned);
 
     } catch (err) {
-      console.error("RAW AI OUTPUT:", text);
+      console.error("BROKEN AI OUTPUT:", text);
 
       return res.json({
         mode: "conversation",
-        reply: "Sorry, I didn’t understand that. Can you rephrase it?",
+        reply: "Sorry, I didn’t fully understand that — can you rephrase it?",
         sat_domain: "",
         vocabulary_boost: "",
         rewrite: "",
