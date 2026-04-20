@@ -1,13 +1,13 @@
 {
   "name": "english-tutor-backend",
   "version": "1.0.0",
-  "description": "Simple English Tutor API backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "@google/generative-ai": "^0.21.0"
   }
 }
