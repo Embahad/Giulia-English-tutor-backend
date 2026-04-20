@@ -4,14 +4,13 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 
-// middleware
 app.use(cors());
 app.use(express.json());
 
 // Gemini setup
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Test route
+// Health check
 app.get("/", (req, res) => {
   res.json({
     message: "English Tutor API (Gemini AI) is running 🚀"
@@ -23,9 +22,7 @@ app.post("/api/check", async (req, res) => {
   const { sentence } = req.body;
 
   if (!sentence) {
-    return res.status(400).json({
-      error: "No sentence provided"
-    });
+    return res.status(400).json({ error: "No sentence provided" });
   }
 
   try {
@@ -34,37 +31,55 @@ app.post("/api/check", async (req, res) => {
     });
 
     const prompt = `
-You are an expert English tutor.
+You are an expert English tutor for SAT, IELTS, and TOEFL students.
 
-Your job:
-1. Correct the student's sentence
-2. Explain mistakes simply
-3. Give the improved version
-4. Be friendly, clear, and encouraging
-5. Do NOT be rude or too long
-
-Student sentence:
+Analyze the sentence:
 "${sentence}"
+
+Return ONLY valid JSON (no markdown, no explanation) in this exact format:
+
+{
+  "feedback": "brief grammar explanation",
+  "sat_skill": "grammar / vocabulary / structure / clarity",
+  "vocabulary_boost": "1-2 advanced word suggestions",
+  "suggestion": "improved academic version of the sentence"
+}
 `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
+    let text = response.text();
 
-    return res.json({
-      original: sentence,
-      feedback: text
-    });
+    // 🧠 SAFE CLEANING (VERY IMPORTANT)
+    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      console.error("JSON parse failed:", text);
+
+      return res.json({
+        feedback: "AI response format issue. Try again.",
+        sat_skill: "unknown",
+        vocabulary_boost: "N/A",
+        suggestion: sentence
+      });
+    }
+
+    res.json(data);
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
+
+    res.status(500).json({
       error: "Gemini AI request failed"
     });
   }
 });
 
-// SIMPLE XP SYSTEM (optional for frontend)
+// XP SYSTEM (optional)
 app.post("/api/xp", (req, res) => {
   const { correct } = req.body;
 
