@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// GROQ INIT
+// GROQ SETUP
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
@@ -15,7 +15,7 @@ const groq = new Groq({
 // HEALTH CHECK
 app.get("/", (req, res) => {
   res.json({
-    message: "English Tutor API (Groq AI - Pro Mode) 🚀"
+    message: "English Tutor API (Smart AI Mode) 🚀"
   });
 });
 
@@ -37,37 +37,43 @@ app.post("/api/check", async (req, res) => {
         {
           role: "system",
           content: `
-You are a WORLD-CLASS AI English tutor (SAT + IELTS + TOEFL + conversation coach).
+You are a world-class AI English tutor AND conversation partner.
 
-You are NOT just correcting grammar — you are a REAL conversation partner.
+You MUST adapt your response based on user input:
 
-You analyze:
-- grammar
-- clarity
-- tone (formal, informal, emotional, neutral)
-- mood (happy, confused, angry, neutral, excited)
-- communication intent
+1. VERY SHORT INPUT (Hi, Hello, Ok):
+   - Respond naturally like a human
+   - NO grammar breakdown
+   - Just friendly conversation
 
-RULES:
-- Return ONLY valid JSON
-- NO explanations outside JSON
-- NO markdown
-- Be natural but academically strong
+2. SHORT INPUT (Not bad, I'm fine):
+   - Ask a follow-up question
+   - Light correction if needed
 
-OUTPUT FORMAT:
+3. FULL SENTENCES:
+   - Provide full SAT/IELTS level correction
+
+4. EMOTIONAL INPUT:
+   - Be supportive and conversational
+
+---
+
+OUTPUT ONLY VALID JSON:
+
 {
-  "feedback": "clear explanation of language issue or improvement",
-  "sat_skill": "grammar / vocabulary / clarity / tone / structure",
-  "vocabulary_boost": "2 advanced academic words or expressions",
-  "suggestion": "fully improved version of the sentence",
-  "tone": "formal / informal / neutral / emotional",
-  "mood": "happy / sad / angry / confused / excited / neutral",
-  "conversation_reply": "a natural AI tutor response continuing the conversation"
+  "feedback": "short explanation (or empty if not needed)",
+  "sat_skill": "grammar / vocabulary / clarity / tone / structure / none",
+  "vocabulary_boost": "2 academic words OR N/A",
+  "suggestion": "improved sentence OR N/A",
+  "tone": "formal / informal / neutral / conversational",
+  "mood": "happy / sad / confused / excited / neutral",
+  "conversation_reply": "natural tutor-style response"
 }
 
-IMPORTANT:
-- conversation_reply must feel like talking to a real tutor
-- Keep tone supportive but intelligent
+RULES:
+- No markdown
+- No extra text
+- Return ONLY JSON
 `
         },
         {
@@ -81,31 +87,31 @@ IMPORTANT:
 
     let text = completion.choices[0].message.content;
 
-    // CLEAN RESPONSE
+    // CLEAN OUTPUT
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let data;
 
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const match = text.match(/\{[\s\S]*\}/);
 
-      if (!jsonMatch) {
+      if (!match) {
         throw new Error("No JSON found");
       }
 
-      data = JSON.parse(jsonMatch[0]);
+      data = JSON.parse(match[0]);
 
     } catch (err) {
-      console.error("RAW AI OUTPUT:", text);
+      console.error("RAW OUTPUT:", text);
 
       return res.json({
-        feedback: "AI response format issue. Try again.",
+        feedback: "AI response format issue.",
         sat_skill: "unknown",
         vocabulary_boost: "N/A",
         suggestion: sentence,
         tone: "unknown",
         mood: "unknown",
-        conversation_reply: "Let's try that again. Can you rephrase your sentence?"
+        conversation_reply: "Sorry, I didn't understand that. Can you rephrase?"
       });
     }
 
