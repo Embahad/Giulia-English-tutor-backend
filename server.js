@@ -7,25 +7,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --------------------
-// GROQ SETUP
-// --------------------
+// Initialize Groq
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
-// --------------------
-// HEALTH CHECK
-// --------------------
+// Health check route
 app.get("/", (req, res) => {
   res.json({
-    message: "English Tutor API (Stable Production Mode) 🚀"
+    message: "English Tutor API (SAT + Conversation Mode) is running 🚀"
   });
 });
 
-// --------------------
-// MAIN AI ENDPOINT
-// --------------------
+// Main AI endpoint
 app.post("/api/check", async (req, res) => {
   const { sentence } = req.body;
 
@@ -38,58 +32,25 @@ app.post("/api/check", async (req, res) => {
   try {
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-
       max_tokens: 500,
-
       messages: [
         {
           role: "system",
           content: `
-You are an expert Digital SAT English tutor AND natural conversation partner.
+You are an expert Digital SAT English tutor. Your job is to help high-performing students improve their academic writing.
 
-You must intelligently switch between:
+When the student submits a sentence, analyze it for grammar errors and clarity. Identify the SAT English domain (e.g., Standard English Conventions, Expression of Ideas, Vocabulary in Context). Suggest two advanced vocabulary words that elevate the sentence, and provide a polished academic rewrite. Also, include one practical study tip related to the concept.
 
-------------------------
-MODE 1: CONVERSATION
-------------------------
-- For greetings, short replies, emotional text
-- Be natural and human
-- NO grammar breakdown
-- NO structured analysis
-- Keep it short and engaging
-
-------------------------
-MODE 2: SAT ENGLISH
-------------------------
-- For full sentences or grammar mistakes
-- Correct grammar and clarity
-- Identify SAT domain
-- Give 2 vocabulary improvements
-- Provide polished rewrite
-- Add 1 short study tip
-
-------------------------
-IMPORTANT RULES:
-------------------------
-- ALWAYS return COMPLETE valid JSON
-- NEVER return partial JSON
-- NEVER stop mid-output
-- DO NOT include markdown or explanations outside JSON
-
-------------------------
-OUTPUT FORMAT:
-------------------------
-
+Return ONLY valid JSON with these fields:
 {
-  "mode": "conversation | sat",
-  "reply": "natural response",
-  "sat_domain": "Standard English Conventions / Expression of Ideas / Vocabulary in Context / empty",
-  "vocabulary_boost": "2 words or empty",
-  "rewrite": "improved sentence or empty",
-  "study_tip": "only for SAT mode or empty",
-  "tone": "formal / informal / neutral / emotional",
-  "mood": "happy / confused / frustrated / neutral / excited"
+  "reply": "brief natural tutor response",
+  "sat_domain": "SAT domain or empty if not applicable",
+  "vocabulary_boost": "two advanced words or idioms if relevant, otherwise empty",
+  "rewrite": "improved sentence or empty if not needed",
+  "study_tip": "one practical study tip related to the error or concept"
 }
+
+Be concise, clear, and focused on academic excellence.
 `
         },
         {
@@ -103,9 +64,7 @@ OUTPUT FORMAT:
 
     let text = completion.choices[0].message.content;
 
-    // --------------------
-    // CLEAN OUTPUT
-    // --------------------
+    // Clean output
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let data;
@@ -113,13 +72,13 @@ OUTPUT FORMAT:
     try {
       const match = text.match(/\{[\s\S]*\}/);
 
-      if (!match) throw new Error("No JSON found");
+      if (!match) {
+        throw new Error("No JSON found");
+      }
 
       let cleaned = match[0];
 
-      // --------------------
-      // AUTO FIX BROKEN JSON
-      // --------------------
+      // Auto-fix broken JSON
       const openBraces = (cleaned.match(/\{/g) || []).length;
       const closeBraces = (cleaned.match(/\}/g) || []).length;
 
@@ -133,14 +92,11 @@ OUTPUT FORMAT:
       console.error("BROKEN AI OUTPUT:", text);
 
       return res.json({
-        mode: "conversation",
-        reply: "Sorry, I didn’t fully understand that — can you rephrase it?",
+        reply: "Sorry, I didn’t fully understand that — can you rephrase?",
         sat_domain: "",
         vocabulary_boost: "",
         rewrite: "",
         study_tip: "",
-        tone: "neutral",
-        mood: "confused"
       });
     }
 
@@ -155,9 +111,7 @@ OUTPUT FORMAT:
   }
 });
 
-// --------------------
-// OPTIONAL XP SYSTEM
-// --------------------
+// Optional XP system (if you have a gamification element)
 app.post("/api/xp", (req, res) => {
   const { correct } = req.body;
 
@@ -167,9 +121,7 @@ app.post("/api/xp", (req, res) => {
   });
 });
 
-// --------------------
-// START SERVER
-// --------------------
+// Start the server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
