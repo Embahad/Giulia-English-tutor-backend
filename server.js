@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 
@@ -7,15 +8,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// HOME ROUTE (test if server is working)
+// Gemini setup
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Test route
 app.get("/", (req, res) => {
   res.json({
-    message: "English Tutor API is running 🚀"
+    message: "English Tutor API (Gemini AI) is running 🚀"
   });
 });
 
-// SIMPLE GRAMMAR CHECK (basic version)
-app.post("/api/check", (req, res) => {
+// MAIN AI TUTOR ENDPOINT
+app.post("/api/check", async (req, res) => {
   const { sentence } = req.body;
 
   if (!sentence) {
@@ -24,23 +28,43 @@ app.post("/api/check", (req, res) => {
     });
   }
 
-  let feedback = "Good sentence 👍";
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash"
+    });
 
-  if (sentence.includes(" is are ") || sentence.includes(" are is ")) {
-    feedback = "Check verb agreement (is/are).";
+    const prompt = `
+You are an expert English tutor.
+
+Your job:
+1. Correct the student's sentence
+2. Explain mistakes simply
+3. Give the improved version
+4. Be friendly, clear, and encouraging
+5. Do NOT be rude or too long
+
+Student sentence:
+"${sentence}"
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    return res.json({
+      original: sentence,
+      feedback: text
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      error: "Gemini AI request failed"
+    });
   }
-
-  if (sentence.split(" ").length < 3) {
-    feedback = "Try writing a longer sentence.";
-  }
-
-  res.json({
-    original: sentence,
-    feedback
-  });
 });
 
-// SIMPLE XP SYSTEM
+// SIMPLE XP SYSTEM (optional for frontend)
 app.post("/api/xp", (req, res) => {
   const { correct } = req.body;
 
@@ -52,7 +76,7 @@ app.post("/api/xp", (req, res) => {
   });
 });
 
-// START SERVER
+// start server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
