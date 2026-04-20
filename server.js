@@ -1,56 +1,70 @@
 const express = require("express");
 const cors = require("cors");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Groq = require("groq-sdk");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Gemini setup
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Groq setup
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
 
 // Health check
 app.get("/", (req, res) => {
   res.json({
-    message: "English Tutor API (Gemini AI) is running 🚀"
+    message: "English Tutor API (Groq AI) is running 🚀"
   });
 });
 
-// MAIN AI TUTOR ENDPOINT
+// MAIN AI ENDPOINT
 app.post("/api/check", async (req, res) => {
   const { sentence } = req.body;
 
   if (!sentence) {
-    return res.status(400).json({ error: "No sentence provided" });
+    return res.status(400).json({
+      error: "No sentence provided"
+    });
   }
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash"
-    });
-
-    const prompt = `
+    const completion = await groq.chat.completions.create({
+      model: "llama3-70b-8192",
+      messages: [
+        {
+          role: "system",
+          content: `
 You are an expert English tutor for SAT, IELTS, and TOEFL students.
 
-Analyze the sentence:
-"${sentence}"
+Your job:
+- Correct grammar
+- Explain mistakes simply
+- Suggest advanced vocabulary
+- Rewrite sentence academically
 
-Return ONLY valid JSON (no markdown, no explanation) in this exact format:
-
+IMPORTANT:
+Return ONLY valid JSON in this format:
 {
-  "feedback": "brief grammar explanation",
-  "sat_skill": "grammar / vocabulary / structure / clarity",
-  "vocabulary_boost": "1-2 advanced word suggestions",
-  "suggestion": "improved academic version of the sentence"
+  "feedback": "short explanation",
+  "sat_skill": "grammar / vocabulary / clarity / structure",
+  "vocabulary_boost": "1-2 advanced words",
+  "suggestion": "improved sentence"
 }
-`;
+`
+        },
+        {
+          role: "user",
+          content: sentence
+        }
+      ],
+      temperature: 0.7
+    });
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    let text = completion.choices[0].message.content;
 
-    // 🧠 SAFE CLEANING (VERY IMPORTANT)
+    // Clean response (important)
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let data;
@@ -58,10 +72,10 @@ Return ONLY valid JSON (no markdown, no explanation) in this exact format:
     try {
       data = JSON.parse(text);
     } catch (parseError) {
-      console.error("JSON parse failed:", text);
+      console.error("Parse failed:", text);
 
       return res.json({
-        feedback: "AI response format issue. Try again.",
+        feedback: "AI formatting issue. Try again.",
         sat_skill: "unknown",
         vocabulary_boost: "N/A",
         suggestion: sentence
@@ -71,10 +85,10 @@ Return ONLY valid JSON (no markdown, no explanation) in this exact format:
     res.json(data);
 
   } catch (error) {
-    console.error(error);
+    console.error("GROQ ERROR:", error);
 
     res.status(500).json({
-      error: "Gemini AI request failed"
+      error: error.message || "Groq request failed"
     });
   }
 });
@@ -91,7 +105,7 @@ app.post("/api/xp", (req, res) => {
   });
 });
 
-// start server
+// Start server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
