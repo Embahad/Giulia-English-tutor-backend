@@ -31,8 +31,8 @@ app.post("/api/check", async (req, res) => {
 
   try {
     const completion = await groq.chat.completions.create({
-      // ✅ FIXED MODEL (working one)
-      model: "llama3-8b-8192",
+      // ✅ CURRENT WORKING MODEL (IMPORTANT FIX)
+      model: "llama-3.1-8b-instant",
 
       messages: [
         {
@@ -48,7 +48,7 @@ Return ONLY valid JSON in this format:
   "suggestion": "improved academic version of the sentence"
 }
 
-Be clear, helpful, and concise.
+Be concise, helpful, and accurate.
 `
         },
         {
@@ -61,7 +61,7 @@ Be clear, helpful, and concise.
 
     let text = completion.choices[0].message.content;
 
-    // Clean response (important for safety)
+    // clean possible formatting
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let data;
@@ -69,7 +69,7 @@ Be clear, helpful, and concise.
     try {
       data = JSON.parse(text);
     } catch (err) {
-      console.error("JSON Parse Error:", text);
+      console.error("JSON parse error:", text);
 
       return res.json({
         feedback: "AI response format issue. Try again.",
@@ -94,15 +94,13 @@ Be clear, helpful, and concise.
 app.post("/api/xp", (req, res) => {
   const { correct } = req.body;
 
-  const xp = correct ? 10 : 2;
-
   res.json({
-    xp,
+    xp: correct ? 10 : 2,
     message: correct ? "Great job! 🎉" : "Keep practicing 💪"
   });
 });
 
-// Start server
+// start server
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
