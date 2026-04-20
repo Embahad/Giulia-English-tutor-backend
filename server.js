@@ -31,7 +31,7 @@ app.post("/api/check", async (req, res) => {
 
   try {
     const completion = await groq.chat.completions.create({
-      // ✅ CURRENT WORKING MODEL (IMPORTANT FIX)
+      // ✅ CURRENT STABLE MODEL
       model: "llama-3.1-8b-instant",
 
       messages: [
@@ -40,15 +40,19 @@ app.post("/api/check", async (req, res) => {
           content: `
 You are an expert English tutor for SAT, IELTS, and TOEFL students.
 
-Return ONLY valid JSON in this format:
+STRICT RULES:
+- Return ONLY valid JSON
+- NO markdown
+- NO explanation text
+- NO backticks
+
+FORMAT:
 {
   "feedback": "short grammar explanation",
   "sat_skill": "grammar / vocabulary / clarity / structure",
   "vocabulary_boost": "1-2 advanced words",
   "suggestion": "improved academic version of the sentence"
 }
-
-Be concise, helpful, and accurate.
 `
         },
         {
@@ -61,15 +65,23 @@ Be concise, helpful, and accurate.
 
     let text = completion.choices[0].message.content;
 
-    // clean possible formatting
+    // 🧠 CLEAN RESPONSE (remove markdown if model adds it)
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     let data;
 
     try {
-      data = JSON.parse(text);
+      // 🔥 SAFE JSON EXTRACTION (fixes your error)
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+      if (!jsonMatch) {
+        throw new Error("No JSON found in AI response");
+      }
+
+      data = JSON.parse(jsonMatch[0]);
+
     } catch (err) {
-      console.error("JSON parse error:", text);
+      console.error("RAW GROQ OUTPUT:", text);
 
       return res.json({
         feedback: "AI response format issue. Try again.",
@@ -100,7 +112,7 @@ app.post("/api/xp", (req, res) => {
   });
 });
 
-// start server
+// START SERVER
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
