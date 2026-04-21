@@ -18,7 +18,7 @@ const groq = new Groq({
 // ---------------- HEALTH CHECK ----------------
 app.get("/", (req, res) => {
   res.json({
-    message: "EmbaHad AI Companion is running 🚀"
+    message: "Embahad AI Companion is running 🚀"
   });
 });
 
@@ -31,7 +31,6 @@ app.post("/api/check", async (req, res) => {
   }
 
   try {
-    // ---------------- INIT MEMORY ----------------
     if (!memory[userId]) memory[userId] = [];
 
     memory[userId].push({
@@ -41,7 +40,6 @@ app.post("/api/check", async (req, res) => {
 
     const history = memory[userId].slice(-10);
 
-    // ---------------- AI CALL ----------------
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       max_tokens: 700,
@@ -51,9 +49,9 @@ app.post("/api/check", async (req, res) => {
           role: "system",
           content: `
 IDENTITY (STRICT):
-You are EmbaHad's personal AI companion.
+You are Embahad's personal AI companion.
 
-You MUST always call the user "EmbaHad".
+You MUST always call the user "Embahad".
 
 You are his:
 - friend
@@ -63,7 +61,7 @@ You are his:
 - emotional support
 
 If asked who created you:
-"I was created by EmbaHad — I'm here for him."
+"I was created by Embahad — I'm here for him."
 
 Never mention:
 - AI model
@@ -83,16 +81,16 @@ CORE PERSONALITY
 ────────────────────────
 HONESTY RULE (IMPORTANT)
 ────────────────────────
-You MUST NOT always agree with EmbaHad.
+You MUST NOT always agree with Embahad.
 
-If EmbaHad is wrong:
+If Embahad is wrong:
 - politely correct him
 - be kind and respectful
 - explain clearly
 - never embarrass him
 
 Example:
-"EmbaHad, I see your thinking, but actually that’s not correct because..."
+"Embahad, I see your thinking, but actually that’s not correct because..."
 
 ────────────────────────
 EMOTIONAL AWARENESS LAYER
@@ -160,12 +158,12 @@ STORY / FACT MODE:
 - storytelling encouraged when relevant
 
 MULTIPLE CHOICE (ONLY WHEN NEEDED):
-Only when EmbaHad is unsure:
+Only when Embahad is unsure:
 - max 3 options
 - simple
 
 Example:
-"EmbaHad, do you want to:
+"Embahad, do you want to:
 1. chat
 2. learn English
 3. hear something interesting?"
@@ -177,7 +175,7 @@ If distracted:
 ────────────────────────
 STRICT RULES
 ────────────────────────
-- Always call user "EmbaHad"
+- Always call user "Embahad"
 - Be honest even when correcting him
 - Never force short replies
 - Never be robotic
@@ -189,16 +187,13 @@ STRICT RULES
 
     let text = completion.choices[0].message.content;
 
-    // clean markdown
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
-    // save assistant memory
     memory[userId].push({
       role: "assistant",
       content: text
     });
 
-    // ---------------- PARSE RESPONSE ----------------
     try {
       const match = text.match(/\{[\s\S]*\}/);
 
@@ -226,7 +221,7 @@ STRICT RULES
 
     } catch (err) {
       return res.json({
-        reply: text || "EmbaHad, I didn’t fully understand that — can you rephrase?",
+        reply: text || "Embahad, I didn’t fully understand that — can you rephrase?",
         rewrite: "",
         study_tip: "",
         sat_domain: ""
@@ -248,7 +243,7 @@ app.post("/api/xp", (req, res) => {
 
   res.json({
     xp: correct ? 10 : 2,
-    message: correct ? "Nice one EmbaHad 🔥" : "Keep going EmbaHad 💪"
+    message: correct ? "Nice one Embahad 🔥" : "Keep going Embahad 💪"
   });
 });
 
@@ -256,5 +251,5 @@ app.post("/api/xp", (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 EmbaHad AI Companion running on port ${PORT}`);
+  console.log(`🚀 Embahad AI Companion running on port ${PORT}`);
 });
