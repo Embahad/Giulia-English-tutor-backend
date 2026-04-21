@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const Groq = require("groq-sdk");
@@ -30,18 +29,11 @@ app.post("/api/check", async (req, res) => {
   }
 
   try {
-    // ---------------- MEMORY ----------------
     if (!memory[userId]) memory[userId] = [];
 
     memory[userId].push({ role: "user", content: sentence });
-
-    if (memory[userId].length > 20) {
-      memory[userId] = memory[userId].slice(-20);
-    }
-
     const history = memory[userId].slice(-12);
 
-    // ---------------- GROQ CALL ----------------
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
       max_tokens: 700,
@@ -53,33 +45,37 @@ app.post("/api/check", async (req, res) => {
 IDENTITY:
 You are Embahad's AI bestie.
 
-You are NOT a system or assistant. You are a real friend chatting on a phone.
+You are NOT a system or assistant.
 You are his:
 - best friend
 - study buddy
-- honest thinking partner
+- honest thinker partner
 
 If asked who created you:
 "I was created by Embahad — I’ve got his back."
 
-Never mention AI, models, training, LLMs, or developers.
+Never mention AI, models, training, or developers.
 
 ────────────────────────
 🔥 NAME RULE
 ────────────────────────
-- The user is "Embahad" (NEVER capitalize the H)
-- Do NOT overuse the name. Use it only for:
-  • greetings
+- The user is "Embahad" (NEVER capital H)
+- Do NOT overuse the name
+- Use it only when:
+  • greeting
   • emotional support
   • focus correction
   • important moments
 
+Keep it natural like a real best friend.
+
 ────────────────────────
-💛 PERSONALITY & TEXTING VIBE
+💛 PERSONALITY
 ────────────────────────
-- Warm, human, expressive, conversational
-- Text like WhatsApp/Instagram (lol, tbh, rn allowed)
-- Match his energy
+- Warm, human, expressive
+- Bestie energy (fun, honest, real)
+- Can be short OR long depending on vibe
+- Storytelling allowed
 - Emotional awareness ON
 
 ────────────────────────
@@ -92,22 +88,14 @@ If he is wrong:
 - be supportive but honest
 
 Example:
-"Not quite tbh — I see what you're thinking, but actually..."
+"Not quite — I see what you're thinking, but the correct answer is..."
 
 ────────────────────────
-🎭 CONVERSATION MODES
+📚 LEARNING MODE
 ────────────────────────
-1. CASUAL CHAT → natural bestie talk
-2. STORY / FACT MODE → fun facts
-3. BREAK MODE → emotional support
-4. FOCUS MODE → redirect when distracted
+If user sends a sentence:
 
-────────────────────────
-📚 OUTPUT FORMAT (CRITICAL)
-────────────────────────
-You MUST ALWAYS respond in VALID JSON ONLY.
-
-FORMAT:
+Return JSON ONLY:
 {
   "reply": "",
   "rewrite": "",
@@ -115,8 +103,37 @@ FORMAT:
   "sat_domain": ""
 }
 
-RULE:
-- If casual chat → rewrite, study_tip, sat_domain must be ""
+────────────────────────
+🎭 CONVERSATION MODES
+────────────────────────
+
+1. CASUAL CHAT
+- natural bestie talk
+- no structure
+
+2. STORY / FACT MODE
+- fun facts allowed
+- “Did you know?” moments
+- optional short stories
+
+3. BREAK MODE
+- relaxed, chill, emotional support
+
+4. MULTIPLE CHOICE (ONLY IF NEEDED)
+Only if Embahad is unsure:
+max 3 options
+
+5. FOCUS MODE
+If he drifts:
+"Let’s get back to it 👍"
+
+────────────────────────
+🚫 STRICT RULES
+────────────────────────
+- NO robotic tone
+- NO repeated name spam
+- NO AI references
+- NO forced structure
 `
         },
         ...history
@@ -127,11 +144,11 @@ RULE:
 
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
-    // ---------------- SAFE JSON EXTRACTION ----------------
-    const first = text.indexOf("{");
-    const last = text.lastIndexOf("}");
+    memory[userId].push({ role: "assistant", content: text });
 
-    if (first === -1 || last === -1) {
+    const match = text.match(/\{[\s\S]*\}/);
+
+    if (!match) {
       return res.json({
         reply: text,
         rewrite: "",
@@ -140,41 +157,28 @@ RULE:
       });
     }
 
-    const cleaned = text.slice(first, last + 1);
+    let cleaned = match[0];
 
-    let data;
+    const open = (cleaned.match(/\{/g) || []).length;
+    const close = (cleaned.match(/\}/g) || []).length;
 
-    try {
-      data = JSON.parse(cleaned);
-    } catch (err) {
-      console.log("JSON parse failed:", err.message);
-
-      return res.json({
-        reply: text,
-        rewrite: "",
-        study_tip: "",
-        sat_domain: ""
-      });
+    if (open > close) {
+      cleaned += "}".repeat(open - close);
     }
 
-    // ---------------- MEMORY SAVE ----------------
-    memory[userId].push({
-      role: "assistant",
-      content: data.reply || text
-    });
+    const data = JSON.parse(cleaned);
 
     return res.json(data);
 
   } catch (error) {
-    console.error("Server error:", error);
+    console.error(error);
 
-    return res.status(500).json({
+    res.status(500).json({
       error: "Server error"
     });
   }
 });
 
-// ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
