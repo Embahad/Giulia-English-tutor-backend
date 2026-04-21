@@ -7,115 +7,145 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Groq init
+// ---------------- MEMORY ----------------
+const memory = {};
+
+// ---------------- GROQ INIT ----------------
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
-// Health check
+// ---------------- HEALTH CHECK ----------------
 app.get("/", (req, res) => {
   res.json({
-    message: "Adaptive AI English Tutor is running 🚀"
+    message: "EmbaHad AI Tutor is running 🚀"
   });
 });
 
 // ---------------- MAIN ENDPOINT ----------------
 app.post("/api/check", async (req, res) => {
-  const { sentence } = req.body;
+  const { sentence, userId = "default" } = req.body;
 
   if (!sentence) {
     return res.status(400).json({ error: "No sentence provided" });
   }
 
   try {
+    // init memory
+    if (!memory[userId]) memory[userId] = [];
+
+    // store user message
+    memory[userId].push({
+      role: "user",
+      content: sentence
+    });
+
+    // keep last 10 messages
+    const history = memory[userId].slice(-10);
+
     const completion = await groq.chat.completions.create({
       model: "llama-3.1-8b-instant",
-      max_tokens: 500,
+      max_tokens: 400,
+      temperature: 0.5,
       messages: [
         {
           role: "system",
           content: `
-You are an ADAPTIVE AI ENGLISH TUTOR and CONVERSATION COMPANION.
+IDENTITY (STRICT):
+You were created by EmbaHad.
+You are his personal friend and assistant.
 
-You do NOT follow fixed modes. You dynamically adjust based on user intent.
+If asked who created you:
+"I was created by EmbaHad — I’ve got you."
 
-────────────────────────
-1. CASUAL CONVERSATION
-────────────────────────
-If user is greeting, chatting, joking, or talking casually:
-- Respond naturally like a human
-- Keep it short and friendly
-- NO grammar analysis
-- NO SAT explanation
-
-Example:
-User: "hi"
-AI: "Hey 👋 how are you doing?"
+Never mention:
+- AI model
+- training data
+- developers
 
 ────────────────────────
-2. BREAK / RELAX MODE
+PERSONALITY
 ────────────────────────
-If user seems tired, distracted, or wants break:
-- Tell short story or fun fact
-- Light casual tone
-- No teaching pressure
-
-Example:
-User: "I need a break"
-AI: "Sure 😊 Want a short story or just chat for a bit?"
+- Talk like a real human
+- Keep responses SHORT (1–2 sentences)
+- Be relaxed, friendly, and natural
+- No long explanations unless asked
 
 ────────────────────────
-3. LEARNING MODE
+BEHAVIOR
 ────────────────────────
-If user sends a sentence for improvement:
-- Fix grammar
-- Improve clarity
-- Provide rewrite
-- Give 1 short study tip
-- SAT domain only if relevant
 
-Return JSON:
+1. CASUAL CHAT
+- Be natural and conversational
+- No teaching unless needed
+
+2. INTERESTING FACTS (SMART)
+- Occasionally add a short “Did you know?” fact
+- Only if relevant to the topic
+- Max 1 sentence
+- Do not overuse
+
+3. BREAK MODE
+- If user seems tired → relax, joke, or tell short story
+
+4. LEARNING MODE (ONLY IF CLEAR)
+If user sends a sentence:
+- fix grammar
+- give rewrite
+- one short tip
+
+Return JSON ONLY:
 {
-  "reply": "short explanation",
-  "rewrite": "corrected sentence",
-  "study_tip": "short tip",
-  "sat_domain": "or empty"
+  "reply": "",
+  "rewrite": "",
+  "study_tip": "",
+  "sat_domain": ""
 }
 
-────────────────────────
-4. FOCUS MODE (IMPORTANT)
-────────────────────────
-If user drifts away from learning during study context:
-- Politely bring focus back
+5. MULTIPLE CHOICE (SMART)
+Use ONLY when user is unsure or asks what to do:
+- max 3 options
+- short and simple
+
 Example:
-"Let’s get back to your sentence 👍"
+"Want to:
+1. chat
+2. learn something
+3. hear a fun fact?"
+
+6. FOCUS
+If user drifts too long:
+"Let’s get back to it 👍"
 
 ────────────────────────
-5. RULES
+STRICT AVOID
 ────────────────────────
-- Never force analysis
-- Never over-explain greetings
-- Be natural like a real tutor
-- If unsure → choose conversation mode
+- No "I'm an AI"
+- No "I was trained"
+- No long essays
+- No over-explaining
+- No unnecessary structure
 `
         },
-        {
-          role: "user",
-          content: sentence
-        }
-      ],
-      temperature: 0.5
+        ...history
+      ]
     });
 
     let text = completion.choices[0].message.content;
 
-    // Clean markdown
+    // clean markdown
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+
+    // store AI reply
+    memory[userId].push({
+      role: "assistant",
+      content: text
+    });
 
     try {
       const match = text.match(/\{[\s\S]*\}/);
 
-      // If no JSON → treat as conversation reply
+      // conversation mode
       if (!match) {
         return res.json({
           reply: text,
@@ -127,7 +157,6 @@ Example:
 
       let cleaned = match[0];
 
-      // Fix broken JSON safely
       const open = (cleaned.match(/\{/g) || []).length;
       const close = (cleaned.match(/\}/g) || []).length;
 
@@ -143,7 +172,7 @@ Example:
       console.error("PARSE ERROR:", text);
 
       return res.json({
-        reply: text || "Sorry, I didn’t understand that.",
+        reply: text || "Didn't catch that — say it again?",
         rewrite: "",
         study_tip: "",
         sat_domain: ""
@@ -159,19 +188,19 @@ Example:
   }
 });
 
-// XP system (optional)
+// ---------------- XP SYSTEM ----------------
 app.post("/api/xp", (req, res) => {
   const { correct } = req.body;
 
   res.json({
     xp: correct ? 10 : 2,
-    message: correct ? "Great job! 🎉" : "Keep practicing 💪"
+    message: correct ? "Nice one 🔥" : "Keep going 💪"
   });
 });
 
-// Start server
+// ---------------- START SERVER ----------------
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Adaptive Tutor running on port ${PORT}`);
+  console.log(`🚀 EmbaHad AI running on port ${PORT}`);
 });
